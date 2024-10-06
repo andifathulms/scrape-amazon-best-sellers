@@ -45,14 +45,7 @@ def main():
         elif choice == '3':
             try:
                 category_id = int(input("Enter the category ID to scrape products from: "))
-                
-                # Check if products already exist for this category
-                if check_products_exist_by_category(category_id):
-                    confirm = input(f"Products for category ID {category_id} already exist. This will delete all previous products. Do you want to continue? (yes/no): ").strip().lower()
-                    if confirm != 'yes':
-                        print("Operation aborted.")
-                        return
-                
+
                 # Proceed with scraping if user confirms or if no products exist
                 fetch_products_by_category(category_id)
             

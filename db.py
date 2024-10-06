@@ -135,7 +135,7 @@ def query_products_by_category(category_id):
 def check_products_exist_by_category(category_id):
     """
     Checks if products exist for a given category ID.
-    Returns True if the products table doesn't exist yet.
+    Returns False if the products table doesn't exist yet.
 
     :param category_id: The category ID to check.
     :return: True if products exist, False otherwise.
@@ -154,7 +154,7 @@ def check_products_exist_by_category(category_id):
             print("No products table found. Initializing the database.")
             setup_products_database()
             conn.close()
-            return True
+            return False
         else:
             raise e  # If it's a different error, re-raise it
     finally:
