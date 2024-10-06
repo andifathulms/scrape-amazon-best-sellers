@@ -135,17 +135,30 @@ def query_products_by_category(category_id):
 def check_products_exist_by_category(category_id):
     """
     Checks if products exist for a given category ID.
+    Returns True if the products table doesn't exist yet.
+
     :param category_id: The category ID to check.
     :return: True if products exist, False otherwise.
     """
     conn = connect_to_db('products.db')
     cursor = conn.cursor()
 
-    query = "SELECT COUNT(*) FROM products WHERE category_id = ?"
-    cursor.execute(query, (category_id,))
-    count = cursor.fetchone()[0]
-
-    conn.close()
+    try:
+        # Check if products exist for the given category_id
+        query = "SELECT COUNT(*) FROM products WHERE category_id = ?"
+        cursor.execute(query, (category_id,))
+        count = cursor.fetchone()[0]
+    except sqlite3.OperationalError as e:
+        # This error occurs if the 'products' table doesn't exist
+        if 'no such table: products' in str(e):
+            print("No products table found. Initializing the database.")
+            setup_products_database()
+            conn.close()
+            return True
+        else:
+            raise e  # If it's a different error, re-raise it
+    finally:
+        conn.close()
 
     return count > 0  # Returns True if products exist, otherwise False
 
