@@ -61,8 +61,9 @@ def scrape_category(url, depth, conn):
 
     print(f"Scraping category: {url} (Depth: {depth})")
     response = fetch_page(url, selectors=[SECTION_SELECTOR])
-
-    results = response['data'][0]['results']
+    data = response['data']
+    print(data)
+    results = data[0]['results']
 
     for result in results:
         category_name = result['text']
