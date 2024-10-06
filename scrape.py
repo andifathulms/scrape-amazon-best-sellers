@@ -6,7 +6,7 @@ from constants import SCRAPEOWL_API_KEY, SCRAPEOWL_API_URL, SECTION_SELECTOR, PR
 from db import save_category_to_db, setup_categories_database, get_category_by_id, check_products_exist_by_category, delete_products_by_category
 from utils import extract_url_from_anchor, process_products
 
-def fetch_page(url, selectors, max_retries=3):
+def fetch_page(url, selectors, max_retries=3, render_js=False):
     """
     Fetches the page content from the given URL using ScrapeOwl API.
     Retries up to `max_retries` times if a server-side error occurs.
@@ -27,7 +27,8 @@ def fetch_page(url, selectors, max_retries=3):
         "api_key": SCRAPEOWL_API_KEY,
         "url": url,
         "elements": elements,
-        "json_response": True
+        "json_response": True,
+        "render_js": render_js
     }
 
     data = json.dumps(object_of_data)
@@ -51,16 +52,17 @@ def fetch_page(url, selectors, max_retries=3):
             else:
                 raise Exception(f"Failed to fetch page after {max_retries} attempts")
 
-def scrape_category(url, depth, conn):
+def scrape_category(url, depth, conn, parent_id=None):
     """
     Scrape the category recursively up to 3 levels deep.
-    Stores the category and URL in the database.
+    Stores the category and URL in the database, along with the parent ID.
     """
     if depth > 3:
         return
 
     print(f"Scraping category: {url} (Depth: {depth})")
-    response = fetch_page(url, selectors=[SECTION_SELECTOR])
+    response = fetch_page(url, selectors=[SECTION_SELECTOR], render_js=True)
+
     data = response['data']
     results = data[0]['results']
 
@@ -71,11 +73,13 @@ def scrape_category(url, depth, conn):
         if category_url:
             print(f"Found category: {category_name} -> {category_url}")
 
-            # Save to the database
-            save_category_to_db(conn, category_name, category_url)
+            # Save the category and retrieve its ID
+            current_category_id = save_category_to_db(conn, category_name, category_url, parent_id)
 
-            # Recursive call to go deeper into subcategories
-            scrape_category(category_url, depth + 1, conn)
+            if current_category_id:
+                # Recursive call to go deeper into subcategories with the current category as parent
+                scrape_category(category_url, depth + 1, conn, current_category_id)
+
 
 def scrape_categories_initial():
     """

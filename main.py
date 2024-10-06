@@ -1,15 +1,16 @@
 from scrape import scrape_category, fetch_products_by_category, scrape_categories_initial
 from db import (query_categories, query_products, query_products_by_category,
-                check_products_exist_by_category)
+                check_products_exist_by_category, display_category_tree)
 
 def main():
     """
     Main function to provide the user with a menu to:
     1. Scrape categories and URLs (one-time process)
     2. Query all categories
-    3. Scrape products by category
-    4. Query all products
-    5. Query products by category
+    3. Display Category Tree
+    4. Scrape products by category
+    5. Query all products
+    6. Query products by category
     """
     conn = None
 
@@ -18,23 +19,20 @@ def main():
         print("\n--- Menu ---")
         print("1. Scrape categories and URLs (one-time process)")
         print("2. Query all categories")
-        print("3. Scrape products by category")
-        print("4. Query all products")
-        print("5. Query products by category")
-        print("6. Exit")
+        print("3. Display category tree")
+        print("4. Scrape products by category")
+        print("5. Query all products")
+        print("6. Query products by category")
+        print("7. Exit")
 
         choice = input("Enter your choice (1-6): ")
 
         if choice == '1':
             proceed = input("This will scrape categories and URLs. Do you want to proceed? (yes/no): ").strip().lower()
             if proceed == 'yes':
-                confirm = input("Are you sure? This is a one-time process. (yes/no): ").strip().lower()
-                if confirm == 'yes':
-                    # Perform the category scraping (one-time process)
-                    scrape_categories_initial()
-                    print("Scraping complete!")
-                else:
-                    print("Scraping cancelled.")
+                # Perform the category scraping (one-time process)
+                scrape_categories_initial()
+                print("Scraping complete!")
             else:
                 print("Operation aborted.")
 
@@ -42,7 +40,10 @@ def main():
             # Option 2: Query all categories
             query_categories()
 
-        elif choice == '3':
+        elif choice == "3":
+            display_category_tree()
+
+        elif choice == '4':
             try:
                 category_id = int(input("Enter the category ID to scrape products from: "))
 
@@ -52,11 +53,11 @@ def main():
             except ValueError:
                 print("Invalid category ID.")
 
-        elif choice == "4":
+        elif choice == "5":
             # Option 4: Query all products
             query_products()
 
-        elif choice == "5":
+        elif choice == "6":
             # Option 5: Query products by category
             try:
                 category_id = int(input("Enter the category ID to query products: "))
@@ -64,7 +65,7 @@ def main():
             except ValueError:
                 print("Invalid input. Please enter a valid category ID.")
 
-        elif choice == "6":
+        elif choice == "7":
             # Exit the program
             print("Exiting the program.")
             break

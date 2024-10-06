@@ -31,8 +31,10 @@ def setup_categories_table(conn):
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             category_name TEXT,
-            url TEXT UNIQUE
-        )
+            url TEXT UNIQUE,
+            parent_id INTEGER,
+            FOREIGN KEY (parent_id) REFERENCES categories (id)
+        );
     '''
     create_table(conn, create_table_sql)
 
@@ -73,10 +75,25 @@ def query_database(conn, query):
 # Query categories
 def query_categories():
     conn = connect_to_db('categories.db')
-    query = "SELECT * FROM categories"
+
+    # Query to get the category information along with its parent category
+    query = '''
+        SELECT c.id, c.category_name, c.url, p.category_name AS parent_name
+        FROM categories c
+        LEFT JOIN categories p ON c.parent_id = p.id
+    '''
+
     results = query_database(conn, query)
+
+    # Loop through the results and print the details
     for row in results:
-        print(f"ID: {row[0]}, Category: {row[1]}, URL: {row[2]}")
+        category_id = row[0]
+        category_name = row[1]
+        url = row[2]
+        parent_name = row[3] if row[3] else "No Parent"  # Handle cases where there's no parent
+        
+        print(f"ID: {category_id}, Category: {category_name}, URL: {url}, Parent: {parent_name}")
+    
     conn.close()
 
 # Query products
@@ -188,13 +205,20 @@ def get_category_by_id(category_id):
     return row if row else None
 
 # Save category to the database
-def save_category_to_db(conn, category_name, url):
+def save_category_to_db(conn, category_name, url, parent_id=None):
+    """
+    Save category name, URL, and parent ID into the database.
+    Returns the ID of the inserted category.
+    """
     try:
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO categories (category_name, url) VALUES (?, ?)', (category_name, url))
+        cursor.execute('INSERT INTO categories (category_name, url, parent_id) VALUES (?, ?, ?)', 
+                       (category_name, url, parent_id))
         conn.commit()
+        return cursor.lastrowid  # Return the ID of the newly inserted category
     except sqlite3.IntegrityError:
         print(f"Category '{category_name}' already exists in the database.")
+        return None  # Return None if the category already exists
 
 # Save product to the database
 def save_product_to_db(title, rating, price, category_id):
@@ -226,6 +250,41 @@ def setup_categories_database():
 def setup_products_database():
     conn = connect_to_db('products.db')
     setup_products_table(conn)
+    conn.close()
+
+def print_categories_hierarchy(conn, parent_id=None, level=0):
+    """
+    Prints the categories in a hierarchical format, with children indented.
+    
+    :param conn: Database connection object.
+    :param parent_id: ID of the parent category (None for top-level categories).
+    :param level: The depth level (used for indentation).
+    """
+    cursor = conn.cursor()
+    
+    # Query to get categories with the specified parent_id (NULL for top-level categories)
+    query = '''
+        SELECT id, category_name 
+        FROM categories
+        WHERE parent_id IS ? 
+    '''
+    cursor.execute(query, (parent_id,))
+    categories = cursor.fetchall()
+
+    # Loop through categories and print them
+    for category in categories:
+        category_id, category_name = category
+        indent = ' ' * (level * 4)  # Indentation for pretty print
+        print(f"{indent}- {category_name} (ID: {category_id})")
+        
+        # Recursively print child categories
+        print_categories_hierarchy(conn, parent_id=category_id, level=level + 1)
+
+# Example of how to use this function in your main code
+def display_category_tree():
+    conn = connect_to_db('categories.db')
+    print("Category Hierarchy:")
+    print_categories_hierarchy(conn)
     conn.close()
 
 if __name__ == '__main__':
