@@ -1,6 +1,7 @@
 from scrape import scrape_category, fetch_products_by_category
 from db import (setup_categories_database, query_categories, query_products, query_products_by_category,
                 check_products_exist_by_category, setup_categories_database)
+from constants import BASE_URL
 
 def main():
     """
