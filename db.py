@@ -208,7 +208,7 @@ def save_product_to_db(title, rating, price, category_id):
 def setup_categories_database():
     conn = connect_to_db('categories.db')
     setup_categories_table(conn)
-    conn.close()
+    return conn
 
 def setup_products_database():
     conn = connect_to_db('products.db')
