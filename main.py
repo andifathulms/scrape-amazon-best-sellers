@@ -1,5 +1,6 @@
 from scrape import scrape_category, fetch_products_by_category
-from db import setup_categories_database, query_categories, query_products, query_products_by_category, check_products_exist_by_category
+from db import (setup_categories_database, query_categories, query_products, query_products_by_category,
+                check_products_exist_by_category, setup_categories_database)
 
 def main():
     """
@@ -30,7 +31,7 @@ def main():
                 confirm = input("Are you sure? This is a one-time process. (yes/no): ").strip().lower()
                 if confirm == 'yes':
                     # Perform the category scraping (one-time process)
-                    conn = setup_database()
+                    conn = setup_categories_database()
                     url = BASE_URL + "gp/bestsellers/"
                     scrape_category(url, depth=1, conn=conn)
                     conn.close()
