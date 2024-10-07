@@ -52,34 +52,63 @@ def fetch_page(url, selectors, max_retries=3, render_js=False):
             else:
                 raise Exception(f"Failed to fetch page after {max_retries} attempts")
 
-def scrape_category(url, depth, conn, parent_id=None):
+def scrape_category(url, depth, conn, parent_id=None, current_progress=None, total_count=None):
     """
     Scrape the category recursively up to 3 levels deep.
     Stores the category and URL in the database, along with the parent ID.
+
+    :param url: The URL of the category to scrape.
+    :param depth: Current depth in the recursion (1 for root).
+    :param conn: Database connection object.
+    :param current_progress: Current number of categories scraped.
+    :param total_count: Total number of categories to scrape (estimated).
     """
     if depth > 3:
-        return
+        return current_progress, total_count
 
     print(f"Scraping category: {url} (Depth: {depth})")
     response = fetch_page(url, selectors=[SECTION_SELECTOR], render_js=True)
 
-    data = response['data']
-    results = data[0]['results']
+    if 'data' not in response or len(response['data']) == 0:
+        print("No category data found.")
+        return current_progress, total_count
+
+    results = response['data'][0]['results']
+
+    # Initialize progress counters if not already set
+    if current_progress is None:
+        current_progress = 0
+    if total_count is None:
+        total_count = len(results)  # Estimate total count based on initial results
+
+    # Track how many subcategories were found
+    subcategory_count = 0
 
     for result in results:
         category_name = result['text']
         category_url = extract_url_from_anchor(result['html'])
 
         if category_url:
-            print(f"Found category: {category_name} -> {category_url}")
+            subcategory_count += 1
+            current_progress += 1
 
             # Save the category and retrieve its ID
             current_category_id = save_category_to_db(conn, category_name, category_url, parent_id)
 
+            # Show progress after saving each category
+            print(f"Progress: {current_progress}/{total_count} categories scraped.")
+            print(f"Found category: {category_name} -> {category_url}")
+
             if current_category_id:
                 # Recursive call to go deeper into subcategories with the current category as parent
-                scrape_category(category_url, depth + 1, conn, current_category_id)
+                current_progress, total_count = scrape_category(category_url, depth + 1, conn, current_category_id, current_progress, total_count)
 
+    # Update total category count
+    total_count += subcategory_count
+
+    # Indicator for the number of subcategories found in this level
+    if subcategory_count > 0:
+        print(f"Scraped {subcategory_count} subcategories at depth {depth}.")
 
 def scrape_categories_initial():
     """
@@ -92,7 +121,8 @@ def scrape_categories_initial():
     # Start scraping from the base URL
     try:
         url = BASE_URL + "gp/bestsellers/"
-        scrape_category(url, depth=1, conn=conn)
+        current_progress, total_count = scrape_category(url, depth=1, conn=conn)
+        print(f"Scraping completed: {current_progress}/{total_count} categories scraped.")
     except Exception as e:
         print(f"Error fetching the page: {e}")
     finally:

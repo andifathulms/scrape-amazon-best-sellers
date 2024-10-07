@@ -1,0 +1,5 @@
+*.db
+temp/
+__pycache__/
+*.py[cod]
+*$py.class

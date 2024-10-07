@@ -25,7 +25,7 @@ def main():
         print("6. Query products by category")
         print("7. Exit")
 
-        choice = input("Enter your choice (1-6): ")
+        choice = input("Enter your choice (1-7): ")
 
         if choice == '1':
             proceed = input("This will scrape categories and URLs. Do you want to proceed? (yes/no): ").strip().lower()
