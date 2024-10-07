@@ -52,63 +52,85 @@ def fetch_page(url, selectors, max_retries=3, render_js=False):
             else:
                 raise Exception(f"Failed to fetch page after {max_retries} attempts")
 
-def scrape_category(url, depth, conn, parent_id=None, current_progress=None, total_count=None):
+def scrape_category(url, depth, conn, parent_id=None, depth1_progress=None, depth2_progress=None, depth3_progress=None):
     """
     Scrape the category recursively up to 3 levels deep.
     Stores the category and URL in the database, along with the parent ID.
+    Prints detailed progress at each depth.
 
     :param url: The URL of the category to scrape.
     :param depth: Current depth in the recursion (1 for root).
     :param conn: Database connection object.
-    :param current_progress: Current number of categories scraped.
-    :param total_count: Total number of categories to scrape (estimated).
+    :param parent_id: ID of the parent category.
+    :param depth1_progress: Progress tracker for depth-1 categories.
+    :param depth2_progress: Progress tracker for depth-2 categories.
+    :param depth3_progress: Progress tracker for depth-3 categories.
+    :return: Updated progress counts for depth-1, depth-2, and depth-3.
     """
     if depth > 3:
-        return current_progress, total_count
+        return depth1_progress, depth2_progress, depth3_progress
 
     print(f"Scraping category: {url} (Depth: {depth})")
     response = fetch_page(url, selectors=[SECTION_SELECTOR], render_js=True)
 
     if 'data' not in response or len(response['data']) == 0:
-        print("No category data found.")
-        return current_progress, total_count
+        print(f"No category data found at depth {depth}.")
+        return depth1_progress, depth2_progress, depth3_progress
 
     results = response['data'][0]['results']
 
     # Initialize progress counters if not already set
-    if current_progress is None:
-        current_progress = 0
-    if total_count is None:
-        total_count = len(results)  # Estimate total count based on initial results
+    if depth1_progress is None:
+        depth1_progress = {"current": 0, "total": 0}
+    if depth2_progress is None:
+        depth2_progress = {"current": 0, "total": 0}
+    if depth3_progress is None:
+        depth3_progress = {"current": 0, "total": 0}
 
-    # Track how many subcategories were found
-    subcategory_count = 0
+    # Determine which progress counter to update based on depth
+    if depth == 1:
+        depth1_progress["total"] += len(results)
+    elif depth == 2:
+        depth2_progress["total"] += len(results)
+    elif depth == 3:
+        depth3_progress["total"] += len(results)
 
     for result in results:
         category_name = result['text']
         category_url = extract_url_from_anchor(result['html'])
 
         if category_url:
-            subcategory_count += 1
-            current_progress += 1
+            if depth == 1:
+                depth1_progress["current"] += 1
+            elif depth == 2:
+                depth2_progress["current"] += 1
+            elif depth == 3:
+                depth3_progress["current"] += 1
 
             # Save the category and retrieve its ID
             current_category_id = save_category_to_db(conn, category_name, category_url, parent_id)
 
             # Show progress after saving each category
-            print(f"Progress: {current_progress}/{total_count} categories scraped.")
+            print(f"Progress: Depth-{depth} -> {depth1_progress['current']}/{depth1_progress['total']} depth-1 categories, "
+                  f"{depth2_progress['current']}/{depth2_progress['total']} depth-2 categories, "
+                  f"{depth3_progress['current']}/{depth3_progress['total']} depth-3 categories.")
             print(f"Found category: {category_name} -> {category_url}")
 
             if current_category_id:
                 # Recursive call to go deeper into subcategories with the current category as parent
-                current_progress, total_count = scrape_category(category_url, depth + 1, conn, current_category_id, current_progress, total_count)
+                depth1_progress, depth2_progress, depth3_progress = scrape_category(
+                    category_url, depth + 1, conn, current_category_id,
+                    depth1_progress, depth2_progress, depth3_progress)
 
-    # Update total category count
-    total_count += subcategory_count
+    # Completion message when a depth level is finished
+    if depth == 1 and depth1_progress["current"] == depth1_progress["total"]:
+        print(f"Finished all depth-1 categories. Total: {depth1_progress['total']}")
+    elif depth == 2 and depth2_progress["current"] == depth2_progress["total"]:
+        print(f"Finished depth-2 categories for depth-1 category. Total: {depth2_progress['total']}")
+    elif depth == 3 and depth3_progress["current"] == depth3_progress["total"]:
+        print(f"Finished depth-3 categories for depth-2 category. Total: {depth3_progress['total']}")
 
-    # Indicator for the number of subcategories found in this level
-    if subcategory_count > 0:
-        print(f"Scraped {subcategory_count} subcategories at depth {depth}.")
+    return depth1_progress, depth2_progress, depth3_progress
 
 def scrape_categories_initial():
     """
@@ -121,8 +143,10 @@ def scrape_categories_initial():
     # Start scraping from the base URL
     try:
         url = BASE_URL + "gp/bestsellers/"
-        current_progress, total_count = scrape_category(url, depth=1, conn=conn)
-        print(f"Scraping completed: {current_progress}/{total_count} categories scraped.")
+        depth1_progress, depth2_progress, depth3_progress = scrape_category(url, depth=1, conn=conn)
+        print(f"Scraping completed: Depth-1: {depth1_progress['current']}/{depth1_progress['total']}, "
+              f"Depth-2: {depth2_progress['current']}/{depth2_progress['total']}, "
+              f"Depth-3: {depth3_progress['current']}/{depth3_progress['total']}")
     except Exception as e:
         print(f"Error fetching the page: {e}")
     finally:
